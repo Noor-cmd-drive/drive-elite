@@ -19,10 +19,11 @@ class AppServiceProvider extends ServiceProvider
      * Bootstrap any application services.
      */
     public function boot(): void
-    {
-        // 🚀 Force HTTPS for production environments to resolve "Not Secure" and Mixed Content issues
-        if ($this->app->environment('production')) {
-            URL::forceScheme('https');
-        }
-    }
+{
+    // Railway par HTTPS force karne ka sab se solid tarika
+    \Illuminate\Support\Facades\URL::forceScheme('https');
+    
+    // Kabhi kabhi Railway proxy ko trust nahi karta, ye line use handle karegi
+    $this->app['request']->server->set('HTTPS', 'on');
+}
 }
