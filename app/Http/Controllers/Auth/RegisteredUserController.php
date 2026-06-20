@@ -4,70 +4,35 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\OtpVerification; // 🚀 Naya Import
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http; 
+use Illuminate\Support\Facades\Mail; // 🚀 Naya Import
+use Illuminate\Support\Facades\Session; // 🚀 Naya Import
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException; 
 use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
 {
-    /**
-     * Display the registration view.
-     */
-    public function create(): View
-    {
-        return view('auth.register');
-    }
+    public function create(): View { return view('auth.register'); }
 
-    /**
-     * Handle an incoming registration request.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            // 🌟 STRICT NAME: No numbers allowed at all, only alphabets and spaces
-            'name' => [
-                'required', 
-                'string', 
-                'max:255', 
-                'not_in:admin,administrator,root,Admin,Administrator,Root', 
-                'regex:/^[a-zA-Z\s]+$/'
-            ],
+            'name' => ['required', 'string', 'max:255', 'not_in:admin,administrator,root,Admin,Administrator,Root', 'regex:/^[a-zA-Z\s]+$/'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            
-            // 🌟 SMART PHONE: International format (10 to 15 digits, optional +)
-            'phone' => [
-                'required', 
-                'string', 
-                'min:10', 
-                'max:15', 
-                'regex:/^\+?[0-9]+$/'
-            ],
-            
+            'phone' => ['required', 'string', 'min:10', 'max:15', 'regex:/^\+?[0-9]+$/'],
             'gender' => ['required', 'in:male,female,other'],
             'dob' => ['required', 'date', 'before_or_equal:' . now()->subYears(18)->format('Y-m-d')],
             'driving_license' => ['required', 'accepted'],
             'terms' => ['required', 'accepted'],
             'g-recaptcha-response' => ['required'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ], [
-            // 🌟 Custom Error Messages Updated
-            'name.not_in' => 'Reserved names like "admin", "administrator", or "root" are not allowed.',
-            'name.regex' => 'Name can only contain alphabets and spaces. Numbers are not allowed.',
-            'phone.regex' => 'Please enter a valid phone number (only numbers or a starting + are allowed).',
-            'phone.min' => 'Phone number must be at least 10 digits.',
-            'phone.max' => 'Phone number cannot exceed 15 digits.',
-            'dob.before_or_equal' => 'You are too young to register. You must be at least 18 years old.',
-            'driving_license.accepted' => 'A valid driving license is required to join Drive Elite.',
-            'terms.accepted' => 'You must agree to our Terms & Conditions to proceed.',
-            'g-recaptcha-response.required' => 'Please verify that you are not a robot.',
         ]);
 
         $recaptchaResponse = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
@@ -77,26 +42,51 @@ class RegisteredUserController extends Controller
         ]);
 
         if (!$recaptchaResponse->json('success')) {
-            throw ValidationException::withMessages([
-                'g-recaptcha-response' => 'Captcha verification failed. Please try again.'
-            ]);
+            throw ValidationException::withMessages(['g-recaptcha-response' => 'Captcha verification failed.']);
         }
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'gender' => $request->gender,
-            'dob' => $request->dob,
-            'has_driving_license' => true, 
-            'password' => Hash::make($request->password),
-        ]);
+        // 🚀 OTP LOGIC: User create karne ke bajaye OTP bhejo
+        $otp = rand(100000, 999999);
+        OtpVerification::updateOrCreate(['email' => $request->email], ['otp' => $otp]);
+        
+        // Data session mein rakh do
+        Session::put('temp_user', $request->all());
 
-        event(new Registered($user));
+        // OTP Email bhejo
+        Mail::raw("Your DriveElite verification code is: $otp", function($message) use ($request) {
+            $message->to($request->email)->subject('Verification OTP - DriveElite');
+        });
 
-        Auth::login($user);
+        return redirect()->route('verify.otp.view');
+    }
 
-        return redirect(route('dashboard', absolute: false))
-            ->with('success', 'Account created successfully. Welcome to the Elite club.');
+    // 🚀 OTP Verification Function (Naya Add kiya)
+    public function verifyOtp(Request $request): RedirectResponse
+    {
+        $request->validate(['otp' => 'required']);
+        $tempData = Session::get('temp_user');
+
+        if (!$tempData) return redirect()->route('register');
+
+        $otpData = OtpVerification::where('email', $tempData['email'])->latest()->first();
+
+        if ($otpData && $otpData->otp == $request->otp) {
+            $user = User::create([
+                'name' => $tempData['name'],
+                'email' => $tempData['email'],
+                'phone' => $tempData['phone'],
+                'gender' => $tempData['gender'],
+                'dob' => $tempData['dob'],
+                'has_driving_license' => true, 
+                'password' => Hash::make($tempData['password']),
+            ]);
+
+            event(new Registered($user));
+            Auth::login($user);
+            Session::forget('temp_user');
+            return redirect(route('dashboard', absolute: false));
+        }
+
+        throw ValidationException::withMessages(['otp' => 'Invalid OTP code.']);
     }
 }

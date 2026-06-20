@@ -258,5 +258,13 @@ Route::get('/safe-migrate', function() {
 // 🍪 NEW: COOKIE CONSENT ROUTE
 Route::post('/cookie-consent/store', [CookieConsentController::class, 'store'])->name('cookie.store');
 
+// ==========================================
+// 🚀 STEP 4: OTP VERIFICATION ROUTES (NEW)
+// ==========================================
+Route::get('/verify-otp', function() {
+    return view('auth.verify-otp');
+})->name('verify.otp.view');
+
+Route::post('/verify-otp', [\App\Http\Controllers\Auth\RegisteredUserController::class, 'verifyOtp'])->name('verify.otp.submit');
 
 require __DIR__.'/auth.php';
