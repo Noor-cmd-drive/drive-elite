@@ -4,15 +4,15 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\OtpVerification; // 🚀 Naya Import
+use App\Models\OtpVerification; 
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http; 
-use Illuminate\Support\Facades\Mail; // 🚀 Naya Import
-use Illuminate\Support\Facades\Session; // 🚀 Naya Import
+use Illuminate\Support\Facades\Mail; 
+use Illuminate\Support\Facades\Session; 
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException; 
 use Illuminate\View\View;
@@ -45,12 +45,23 @@ class RegisteredUserController extends Controller
             throw ValidationException::withMessages(['g-recaptcha-response' => 'Captcha verification failed.']);
         }
 
-        // 🚀 OTP LOGIC: User create karne ke bajaye OTP bhejo
         $otp = rand(100000, 999999);
         OtpVerification::updateOrCreate(['email' => $request->email], ['otp' => $otp]);
         
-        // Data session mein rakh do
         Session::put('temp_user', $request->all());
+
+        // ==========================================
+        // 🚀 THE EMERGENCY BYPASS (Added Here)
+        // ==========================================
+        config([
+            'mail.default' => 'smtp',
+            'mail.mailers.smtp.transport' => 'smtp',
+            'mail.mailers.smtp.host' => 'smtp.gmail.com',
+            'mail.mailers.smtp.port' => 587,
+            'mail.mailers.smtp.encryption' => 'tls',
+            'mail.mailers.smtp.username' => 'driveeliterentals@gmail.com', // ⚠️ APNI GMAIL YAHAN LIKHEIN
+            'mail.mailers.smtp.password' => 'faiv bpwo isqs ifke', // ⚠️ APNA APP PASSWORD YAHAN LIKHEIN
+        ]);
 
         // OTP Email bhejo
         Mail::raw("Your DriveElite verification code is: $otp", function($message) use ($request) {
@@ -60,7 +71,6 @@ class RegisteredUserController extends Controller
         return redirect()->route('verify.otp.view');
     }
 
-    // 🚀 OTP Verification Function (Naya Add kiya)
     public function verifyOtp(Request $request): RedirectResponse
     {
         $request->validate(['otp' => 'required']);
