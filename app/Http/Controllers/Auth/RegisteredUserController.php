@@ -57,8 +57,8 @@ class RegisteredUserController extends Controller
             'mail.default' => 'smtp',
             'mail.mailers.smtp.transport' => 'smtp',
             'mail.mailers.smtp.host' => 'smtp.gmail.com',
-            'mail.mailers.smtp.port' => 587,
-            'mail.mailers.smtp.encryption' => 'tls',
+            'mail.mailers.smtp.port' => 465,
+            'mail.mailers.smtp.encryption' => 'ssl',
             'mail.mailers.smtp.username' => 'driveeliterentals@gmail.com', // ⚠️ APNI GMAIL YAHAN LIKHEIN
             'mail.mailers.smtp.password' => 'faiv bpwo isqs ifke', // ⚠️ APNA APP PASSWORD YAHAN LIKHEIN
         ]);
