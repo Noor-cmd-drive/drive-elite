@@ -100,3 +100,4 @@ class RegisteredUserController extends Controller
         throw ValidationException::withMessages(['otp' => 'Invalid OTP code.']);
     }
 }
+//
