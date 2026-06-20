@@ -27,6 +27,12 @@
             </div>
         @endif
 
+        @if(session('emergency_otp'))
+            <div style="background-color: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 12px; border-radius: 5px; margin-bottom: 20px; font-weight: bold; text-align: center;">
+                ⚠️ Server Delay Bypass - Your OTP is: <span style="font-size: 18px;">{{ session('emergency_otp') }}</span>
+            </div>
+        @endif
+
         <form action="{{ route('verify.otp.submit') }}" method="POST">
             @csrf
             <input type="text" name="otp" placeholder="Enter 6-digit OTP" required maxlength="6" pattern="\d{6}">

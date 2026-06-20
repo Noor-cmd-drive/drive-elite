@@ -51,22 +51,27 @@ class RegisteredUserController extends Controller
         Session::put('temp_user', $request->all());
 
         // ==========================================
-        // 🚀 THE EMERGENCY BYPASS (Added Here)
+        // 🚀 THE TEMPORARY FAIL-SAFE LOGIC (Step 1)
         // ==========================================
-        config([
-            'mail.default' => 'smtp',
-            'mail.mailers.smtp.transport' => 'smtp',
-            'mail.mailers.smtp.host' => 'smtp.gmail.com',
-            'mail.mailers.smtp.port' => 465,
-            'mail.mailers.smtp.encryption' => 'ssl',
-            'mail.mailers.smtp.username' => 'driveeliterentals@gmail.com', // ⚠️ APNI GMAIL YAHAN LIKHEIN
-            'mail.mailers.smtp.password' => 'faiv bpwo isqs ifke', // ⚠️ APNA APP PASSWORD YAHAN LIKHEIN
-        ]);
+        try {
+            config([
+                'mail.default' => 'smtp',
+                'mail.mailers.smtp.transport' => 'smtp',
+                'mail.mailers.smtp.host' => 'smtp.gmail.com',
+                'mail.mailers.smtp.port' => 465,
+                'mail.mailers.smtp.encryption' => 'ssl',
+                'mail.mailers.smtp.timeout' => 3, // ⏱️ Sirf 3 second wait karega, phir aagay nikal jayega
+                'mail.mailers.smtp.username' => 'driveeliterentals@gmail.com',
+                'mail.mailers.smtp.password' => 'faiv bpwo isqs ifke',
+            ]);
 
-        // OTP Email bhejo
-        Mail::raw("Your DriveElite verification code is: $otp", function($message) use ($request) {
-            $message->to($request->email)->subject('Verification OTP - DriveElite');
-        });
+            Mail::raw("Your DriveElite verification code is: $otp", function($message) use ($request) {
+                $message->to($request->email)->subject('Verification OTP - DriveElite');
+            });
+        } catch (\Exception $e) {
+            // 🚨 Agar Railway block kare, toh OTP screen ke liye session mein daal do
+            Session::put('emergency_otp', $otp);
+        }
 
         return redirect()->route('verify.otp.view');
     }
@@ -93,11 +98,13 @@ class RegisteredUserController extends Controller
 
             event(new Registered($user));
             Auth::login($user);
+            
             Session::forget('temp_user');
+            Session::forget('emergency_otp'); // Clean up
+            
             return redirect(route('dashboard', absolute: false));
         }
 
         throw ValidationException::withMessages(['otp' => 'Invalid OTP code.']);
     }
 }
-//
